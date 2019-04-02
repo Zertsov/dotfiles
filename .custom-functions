@@ -1,0 +1,9 @@
+# Scans a port to see what's running on it, if anything
+portscan () {
+    if [[ $# -eq 0 ]]; then
+        lsof -i -P
+        return 0
+    fi
+
+    lsof -n -i4TCP:$1
+}
