@@ -1,0 +1,90 @@
+#!/usr/bin/env zsh
+export LSCOLORS="BxBxhxDxfxhxhxhxhxcxcx"
+
+# Sourcing
+alias s="source ~/.zshrc"
+
+# ls
+alias ls="command ls -FGh"
+alias sl="command ls -FGh" # Because I type too fast sometimes
+alias la="ls -FGha"
+
+# Directory changing
+alias sand="cd ~/sandbox"
+alias work="cd ~/git"
+alias t="cd ~/git/turbo"
+alias g="cd ~/git"
+alias dl="cd ~/Downloads"
+
+# lock screen
+alias afk="pmset displaysleepnow"
+
+# Git
+alias gs="git status"
+alias ga="git add"
+alias gaa="git add -A"
+alias gc="git commit -m"
+alias gd="git diff"
+alias gb="git branch"
+alias gp="git push"
+alias pull="git pull"
+alias merge="git merge"
+alias gf="git forget"
+alias co="git checkout"
+alias newbranch="git checkout -b"
+# --all flag will stash untracked files as well
+alias stash="git stash --all"
+
+# Docker
+alias dcu="docker-compose up"
+alias dcd="docker-compose down"
+
+# Node / JS stuff
+alias pn="pnpm"
+
+# grep
+alias grep='rg --color=auto'
+
+# This allows aliases to be sudo'd
+alias sudo='sudo '
+
+# Zed editor
+alias z='zed'
+
+# IP Addresses
+alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
+alias myip="ipconfig getifaddr en0"
+alias ips="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
+
+# Copy to clipboard
+alias c="tr -d '\n' | pbcopy"
+
+# Get rid of all those .DS_Store files
+alias dsclean="find . -type f -name '*.DS_Store' -ls -delete"
+
+# Show or hide all files in Finder
+alias show="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
+alias hide="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
+
+# URL encode string
+alias urlencode='python3 -c "import sys, urllib as ul; print ul.quote_plus(sys.argv[1]);"'
+
+# alias all HTTP methods for easy usage on the cli
+for method in GET HEAD POST PUT DELETE TRACE OPTIONS; do
+    alias "${method}"="lwp-request -m '${method}'"
+done
+
+# Alias vim to neovim
+alias vim="nvim"
+
+# list all paths on the $PATH variable
+alias path='echo -e ${PATH//:/\\n}'
+
+# Turborepo specific
+alias tests="cd ~/git/turbo/turborepo-tests/integration/tests"
+alias runprysk=".cram_env/bin/prysk --shell=bash"
+alias turbo-dev="~/git/turbo/target/debug/turbo"
+
+# Vercel API specific
+alias api="cd ~/git/api"
+
