@@ -1,0 +1,84 @@
+#!/bin/zsh
+# Add custom functions here
+
+function clean_local_branches() {
+    MAIN_BRANCH="main"
+    COLOR_ENABLED=true
+
+    # ANSI color codes
+    RED="\033[31m"
+    GREEN="\033[32m"
+    CYAN="\033[36m"
+    NO_COLOR="\033[0m"
+
+    # Function to colorize text if coloring is enabled
+    function colorize() {
+        local color=$1
+        local text=$2
+        if $COLOR_ENABLED; then
+            echo -e "${color}${text}${NO_COLOR}"
+        else
+            echo "$text"
+        fi
+    }
+
+    # Fetch latest changes
+    git fetch origin -p
+
+    # Ensure the main branch is up to date
+    git checkout $MAIN_BRANCH && git pull
+
+    # Find all local branches with a "gone" remote
+    local branches_with_deleted_remote=($(git branch -vv | rg ': gone]' | awk '{print $1}'))
+
+    # Loop through all local branches
+    for branch in $branches_with_deleted_remote; do
+        # Skip the main branch
+        if [[ "$branch" == "$MAIN_BRANCH" ]]; then
+            continue
+        fi
+
+        echo "Branch $(colorize $RED "$branch") was tracking a remote that's now gone (likely merged)."
+        # Prompt user for deletion
+        read "choice?Do you want to delete the branch $(colorize $CYAN "$branch")? (y/n): "
+        case "$choice" in
+            y|Y)
+                git branch -D "$branch" && echo "Deleted $(colorize $GREEN "$branch")"
+                ;;
+            n|N)
+                echo "Skipped deletion of branch $(colorize $CYAN "$branch")."
+                ;;
+            *)
+                echo "Invalid input. Skipping deletion of branch '$branch'."
+                ;;
+        esac
+        echo
+    done
+}
+
+function docker_colima() {
+    export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+}
+
+# Run a test file in `vercel/api`
+function api_test() {
+    local package_name=$1
+    local test_path=$2
+
+    # make sure package is provided
+    if [[ -z "$package_name" ]]; then
+        echo "Error: package name is required"
+        echo "Usage: api_test <package-name> <test-path>"
+        return 1
+    fi
+
+    # make sure test path is provided
+    if [[ -z "$test_path" ]]; then
+        echo "Error: path to test file is required"
+        echo "Usage: api_test <package-name> <test-path>"
+        return 1
+    fi
+
+    echo "Running tests for package: $package_name"
+    pnpm -F "$package_name" test -- "$test_path"
+}
