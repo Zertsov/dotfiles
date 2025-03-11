@@ -2,7 +2,7 @@
 # Add custom functions here
 
 # Scans a port to see what's running on it, if anything
-portscan () {
+function portscan () {
     if [[ $# -eq 0 ]]; then
         lsof -i -P
         return 0
