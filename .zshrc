@@ -51,7 +51,7 @@ source ~/.funcs
 ########
 # Misc #
 ########
-export PNPM_HOME="/Users/mitch/Library/pnpm"
+export PNPM_HOME="/Users/voz/Library/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 
 #######
