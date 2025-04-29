@@ -34,6 +34,7 @@ alias co="git checkout"
 alias newbranch="git checkout -b"
 # --all flag will stash untracked files as well
 alias stash="git stash --all"
+alias cmb="clean_local_branches"
 
 # Docker
 alias dcu="docker-compose up"
