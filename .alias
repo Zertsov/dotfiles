@@ -1,6 +1,10 @@
 #!/usr/bin/env zsh
 export LSCOLORS="BxBxhxDxfxhxhxhxhxcxcx"
 
+# Spelling is hard
+alias clera=clear
+alias lear=clear
+
 # Sourcing
 alias s="source ~/.zshrc"
 
@@ -23,6 +27,7 @@ alias afk="pmset displaysleepnow"
 alias gs="git status"
 alias ga="git add"
 alias gaa="git add -A"
+alias gaf="git_add_by_partial_filename"
 alias gc="git commit -m"
 alias gd="git diff"
 alias gb="git branch"
@@ -45,12 +50,10 @@ alias pn="pnpm"
 
 # grep
 alias grep='rg --color=auto'
+alias rg='rg -i'
 
 # This allows aliases to be sudo'd
 alias sudo='sudo '
-
-# Zed editor
-alias z='zed'
 
 # IP Addresses
 alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
@@ -80,12 +83,4 @@ alias vim="nvim"
 
 # list all paths on the $PATH variable
 alias path='echo -e ${PATH//:/\\n}'
-
-# Turborepo specific
-alias tests="cd ~/git/turbo/turborepo-tests/integration/tests"
-alias runprysk=".cram_env/bin/prysk --shell=bash"
-alias turbo-dev="~/git/turbo/target/debug/turbo"
-
-# Vercel API specific
-alias api="cd ~/git/api"
 
