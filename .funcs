@@ -66,10 +66,6 @@ function clean_local_branches() {
     done
 }
 
-function docker_colima() {
-    export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
-}
-
 function git_add_by_partial_filename() {
     # Check if filename argument was provided
     if [[ $# -eq 0 ]]; then
