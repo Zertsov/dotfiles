@@ -43,8 +43,8 @@ function clean_local_branches() {
 
     # Loop through all local branches
     for branch in $branches_with_deleted_remote; do
-        # Skip the main branch
-        if [[ "$branch" == "$MAIN_BRANCH" ]]; then
+        # Skip the main branch or worktree tracked branches. Worktrees will start with a "+" in `git branch -v`
+        if [[ "$branch" == "$MAIN_BRANCH" == "+"* ]]; then
             continue
         fi
 
