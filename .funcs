@@ -38,28 +38,75 @@ function clean_local_branches() {
     # Ensure the main branch is up to date
     git checkout $MAIN_BRANCH && git pull
 
+    # Map branches to their linked worktree paths (excluding the main worktree)
+    local repo_root
+    repo_root="$(git rev-parse --show-toplevel)"
+    typeset -A BRANCH_WORKTREES=()
+    local current_worktree=""
+    while read -r key value; do
+        case "$key" in
+            worktree)
+                current_worktree="$value"
+                ;;
+            branch)
+                local branch_name="${value#refs/heads/}"
+                if [[ "$current_worktree" == "$repo_root" ]]; then
+                    continue
+                fi
+                if [[ -n "${BRANCH_WORKTREES[$branch_name]:-}" ]]; then
+                    BRANCH_WORKTREES[$branch_name]="${BRANCH_WORKTREES[$branch_name]}\n${current_worktree}"
+                else
+                    BRANCH_WORKTREES[$branch_name]="${current_worktree}"
+                fi
+                ;;
+        esac
+    done < <(git worktree list --porcelain)
+
     # Find all local branches with a "gone" remote
-    local branches_with_deleted_remote=($(git branch -vv | rg ': gone]' | awk '{print $1}'))
+    local -a branches_with_deleted_remote=($(git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | command rg '\[gone\]' | awk '{print $1}'))
 
     # Loop through all local branches
-    for branch in $branches_with_deleted_remote; do
-        # Skip the main branch or worktree tracked branches. Worktrees will start with a "+" in `git branch -v`
-        if [[ "$branch" == "$MAIN_BRANCH" == "+"* ]]; then
+    for branch in "${branches_with_deleted_remote[@]}"; do
+        local normalized_branch="$branch"
+
+        if [[ -z "$normalized_branch" ]]; then
             continue
         fi
 
-        echo "Branch $(colorize $RED "$branch") was tracking a remote that's now gone (likely merged)."
+        # Skip the main branch
+        if [[ "$normalized_branch" == "$MAIN_BRANCH" ]]; then
+            continue
+        fi
+
+        echo "Branch $(colorize $RED "$normalized_branch") was tracking a remote that's now gone (likely merged)."
         # Prompt user for deletion
-        read "choice?Do you want to delete the branch $(colorize $CYAN "$branch")? (y/n): "
+        read "choice?Do you want to delete the branch $(colorize $CYAN "$normalized_branch") and any linked worktrees? (y/n): "
         case "$choice" in
             y|Y)
-                git branch -D "$branch" && echo "Deleted $(colorize $GREEN "$branch")"
+                local worktree_list="${BRANCH_WORKTREES[$normalized_branch]:-}"
+                local removal_failed=false
+                if [[ -n "$worktree_list" ]]; then
+                    echo "Removing worktrees linked to $(colorize $CYAN "$normalized_branch")"
+                    local wt
+                    for wt in ${(f)worktree_list}; do
+                        echo "  removing worktree: $wt"
+                        if ! git worktree remove "$wt"; then
+                            echo "Failed to remove worktree '$wt'. Skipping branch deletion."
+                            removal_failed=true
+                            break
+                        fi
+                    done
+                fi
+                if [[ "$removal_failed" == true ]]; then
+                    continue
+                fi
+                git branch -D "$normalized_branch" && echo "Deleted $(colorize $GREEN "$normalized_branch")"
                 ;;
             n|N)
-                echo "Skipped deletion of branch $(colorize $CYAN "$branch")."
+                echo "Skipped deletion of branch $(colorize $CYAN "$normalized_branch")."
                 ;;
             *)
-                echo "Invalid input. Skipping deletion of branch '$branch'."
+                echo "Invalid input. Skipping deletion of branch '$normalized_branch'."
                 ;;
         esac
         echo
