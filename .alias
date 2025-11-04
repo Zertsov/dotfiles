@@ -16,7 +16,6 @@ alias la="ls -FGha"
 # Directory changing
 alias sand="cd ~/sandbox"
 alias work="cd ~/git"
-alias t="cd ~/git/turbo"
 alias g="cd ~/git"
 alias dl="cd ~/Downloads"
 
