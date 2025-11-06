@@ -124,3 +124,130 @@ function git_add_by_partial_filename() {
     local file=$1
     git add $(git status --porcelain | rg -i "$file" | awk '{print $2}')
 }
+
+wt () {
+  if [[ "$1" == "help" || "$1" == "--help" || "$1" == "" ]]
+  then
+    cat <<'EOF'
+Usage: wt <command> [options]
+Commands:
+  list|ls                    Show active worktrees
+  add|new [-b base] [path]   Add a worktree for <branch>; defaults path to ../<repo>-<branch>
+  remove|rm <path|branch>    Remove a worktree by path or branch name
+  prune                      Run git worktree prune
+Examples:
+  wt list
+  wt add feature/login
+  wt add -b main feature/login ../product-site-login
+  wt remove feature/login
+EOF
+    return 0
+  fi
+  local subcommand=$1 
+  shift
+  if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1
+  then
+    echo "wt: run inside a git repository" >&2
+    return 1
+  fi
+  local repo_root
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null)  || return 1
+  local repo_name
+  repo_name=$(basename "$repo_root") 
+  case "$subcommand" in
+    (list | ls) git worktree list "$@" ;;
+    (add | new) local branch="" 
+      local target_path="" 
+      local base_branch="" 
+      while [[ $# -gt 0 ]]
+      do
+        case "$1" in
+          (-b | --base) base_branch=$2 
+            shift 2 ;;
+          (-p | --path) target_path=$2 
+            shift 2 ;;
+          (--help | -h) wt help
+            return 0 ;;
+          (*) if [[ -z "$branch" ]]
+            then
+              branch=$1 
+            elif [[ -z "$target_path" ]]
+            then
+              target_path=$1 
+            else
+              echo "wt add: unexpected argument '$1'" >&2
+              return 1
+            fi
+            shift
+            continue ;;
+        esac
+      done
+      if [[ -z "$branch" ]]
+      then
+        echo "wt add: branch name required" >&2
+        return 1
+      fi
+      local sanitized_branch=${branch//\//-} 
+      if [[ -z "$target_path" ]]
+      then
+        target_path="$(dirname "$repo_root")/${repo_name}-${sanitized_branch}" 
+      fi
+      if git show-ref --verify --quiet "refs/heads/$branch"
+      then
+        git worktree add "$target_path" "$branch"
+        return $?
+      fi
+      if git show-ref --verify --quiet "refs/remotes/origin/$branch"
+      then
+        git worktree add --track -b "$branch" "$target_path" "origin/$branch"
+        return $?
+      fi
+      if [[ -n "$base_branch" ]]
+      then
+        git worktree add -b "$branch" "$target_path" "$base_branch"
+        return $?
+      fi
+      echo "wt add: branch '$branch' not found. Use --base <existing-branch> to create it." >&2
+      return 1 ;;
+    (remove | rm) if [[ $# -eq 0 ]]
+      then
+        echo "wt remove: provide a path or branch name" >&2
+        return 1
+      fi
+      local input=$1 
+      local target="" 
+      if [[ -d "$input" ]]
+      then
+        target=$input 
+      else
+        target=$(git worktree list --porcelain | awk -v branch="$input" '
+                    /^worktree / {w=$2}
+                    /^branch / {
+                        b=$2
+                        sub(/^refs\/heads\//,"",b)
+                        if (b == branch) {
+                            print w
+                            exit
+                        }
+                    }
+                ') 
+        if [[ -z "$target" ]]
+        then
+          local guess="$(dirname "$repo_root")/${repo_name}-${input//\//-}" 
+          if [[ -d "$guess" ]]
+          then
+            target=$guess 
+          fi
+        fi
+      fi
+      if [[ -z "$target" ]]
+      then
+        echo "wt remove: unable to resolve worktree for '$input'" >&2
+        return 1
+      fi
+      git worktree remove "$target" ;;
+    (prune) git worktree prune "$@" ;;
+    (*) echo "wt: unknown command '$subcommand'. See 'wt help'." >&2
+      return 1 ;;
+  esac
+}
