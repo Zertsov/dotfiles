@@ -16,7 +16,8 @@ source "${DOTFILES_DIR}/.alias"
 # Prompt config #
 #################
 git_prompt () {
-	git rev-parse --is-inside-work-tree &> /dev/null || return
+	local insideWorkTree="$(git rev-parse --is-inside-work-tree 2> /dev/null)" || return
+	[ "${insideWorkTree}" = "true" ] || return
 	local branchName="$(git symbolic-ref --quiet --short HEAD 2> /dev/null || \
 	git describe --all --exact-match HEAD 2> /dev/null || \
 	git rev-parse --short HEAD 2> /dev/null || \
