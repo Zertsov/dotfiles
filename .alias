@@ -84,3 +84,4 @@ alias vim="nvim"
 # list all paths on the $PATH variable
 alias path='echo -e ${PATH//:/\\n}'
 
+alias cc='claude --dangerously-skip-permissions'
