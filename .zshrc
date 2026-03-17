@@ -51,10 +51,17 @@ source ~/.funcs
 ########
 # Misc #
 ########
-export PNPM_HOME="/Users/voz/Library/pnpm"
-export PATH="$PNPM_HOME:$PATH"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    export PNPM_HOME="$HOME/Library/pnpm"
+else
+    export PNPM_HOME="$HOME/.local/share/pnpm"
+fi
+case ":$PATH:" in
+    *":$PNPM_HOME:"*) ;;
+    *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
 
 #######
 # FNM #
 #######
-eval "$(fnm env --use-on-cd)"
+command -v fnm &>/dev/null && eval "$(fnm env --use-on-cd)"

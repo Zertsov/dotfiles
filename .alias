@@ -21,7 +21,11 @@ alias g="cd ~/git"
 alias dl="cd ~/Downloads"
 
 # lock screen
-alias afk="pmset displaysleepnow"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    alias afk="pmset displaysleepnow"
+else
+    alias afk="loginctl lock-session"
+fi
 
 # Git
 alias gs="git status"
@@ -57,18 +61,30 @@ alias sudo='sudo '
 
 # IP Addresses
 alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
-alias myip="ipconfig getifaddr en0"
 alias ips="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    alias myip="ipconfig getifaddr en0"
+else
+    alias myip="hostname -I | awk '{print \$1}'"
+fi
 
 # Copy to clipboard
-alias c="tr -d '\n' | pbcopy"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    alias c="tr -d '\n' | pbcopy"
+elif command -v xclip &>/dev/null; then
+    alias c="tr -d '\n' | xclip -selection clipboard"
+elif command -v xsel &>/dev/null; then
+    alias c="tr -d '\n' | xsel --clipboard --input"
+fi
 
-# Get rid of all those .DS_Store files
-alias dsclean="find . -type f -name '*.DS_Store' -ls -delete"
-
-# Show or hide all files in Finder
-alias show="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
-alias hide="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
+# macOS-only
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # Get rid of all those .DS_Store files
+    alias dsclean="find . -type f -name '*.DS_Store' -ls -delete"
+    # Show or hide all files in Finder
+    alias show="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
+    alias hide="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
+fi
 
 # URL encode string
 alias urlencode='python3 -c "import sys, urllib as ul; print ul.quote_plus(sys.argv[1]);"'
