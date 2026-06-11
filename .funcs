@@ -12,17 +12,18 @@ function portscan () {
 }
 
 function clean_local_branches() {
-    MAIN_BRANCH="main"
-    COLOR_ENABLED=true
+    local MAIN_BRANCH="${CMB_MAIN_BRANCH:-main}"
+    local COLOR_ENABLED=true
 
     # ANSI color codes
-    RED="\033[31m"
-    GREEN="\033[32m"
-    CYAN="\033[36m"
-    NO_COLOR="\033[0m"
+    local RED="\033[31m"
+    local GREEN="\033[32m"
+    local CYAN="\033[36m"
+    local YELLOW="\033[33m"
+    local NO_COLOR="\033[0m"
 
     # Function to colorize text if coloring is enabled
-    function colorize() {
+    function _cmb_colorize() {
         local color=$1
         local text=$2
         if $COLOR_ENABLED; then
@@ -32,38 +33,83 @@ function clean_local_branches() {
         fi
     }
 
-    # Fetch latest changes
-    git fetch origin -p
+    function _cmb_answer_is_yes() {
+        case "$1" in
+            y|Y|yes|YES|Yes) return 0 ;;
+            *) return 1 ;;
+        esac
+    }
 
-    # Ensure the main branch is up to date
-    git checkout $MAIN_BRANCH && git pull
+    function _cmb_answer_is_no() {
+        case "$1" in
+            n|N|no|NO|No) return 0 ;;
+            *) return 1 ;;
+        esac
+    }
 
-    # Map branches to their linked worktree paths (excluding the main worktree)
+    function _cmb_error() {
+        _cmb_colorize $RED "$1"
+    }
+
+    function _cmb_warning() {
+        _cmb_colorize $YELLOW "$1"
+    }
+
     local repo_root
-    repo_root="$(git rev-parse --show-toplevel)"
+    if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        echo "$(_cmb_error "clean_local_branches must be run inside a git repository.")"
+        return 1
+    fi
+
+    # Fetch latest changes
+    if ! git fetch origin -p; then
+        echo "$(_cmb_error "Failed to fetch from origin. Aborting branch cleanup.")"
+        return 1
+    fi
+
+    # Map branches to their linked worktree paths.
     typeset -A BRANCH_WORKTREES=()
+    local main_worktree=""
     local current_worktree=""
-    while read -r key value; do
-        case "$key" in
-            worktree)
-                current_worktree="$value"
-                ;;
-            branch)
-                local branch_name="${value#refs/heads/}"
-                if [[ "$current_worktree" == "$repo_root" ]]; then
-                    continue
-                fi
+    local line
+    while IFS= read -r line; do
+        if [[ "$line" == worktree\ * ]]; then
+            current_worktree="${line#worktree }"
+            continue
+        fi
+
+        if [[ "$line" == branch\ refs/heads/* ]]; then
+            local branch_name="${line#branch refs/heads/}"
+            if [[ "$branch_name" == "$MAIN_BRANCH" ]]; then
+                main_worktree="$current_worktree"
+            fi
+
+            if [[ -n "$branch_name" ]]; then
                 if [[ -n "${BRANCH_WORKTREES[$branch_name]:-}" ]]; then
-                    BRANCH_WORKTREES[$branch_name]="${BRANCH_WORKTREES[$branch_name]}\n${current_worktree}"
+                    BRANCH_WORKTREES[$branch_name]="${BRANCH_WORKTREES[$branch_name]}"$'\n'"${current_worktree}"
                 else
                     BRANCH_WORKTREES[$branch_name]="${current_worktree}"
                 fi
-                ;;
-        esac
+            fi
+        fi
     done < <(git worktree list --porcelain)
 
+    # Ensure the main branch is up to date without switching away from another worktree.
+    if [[ -n "$main_worktree" ]]; then
+        if ! git -C "$main_worktree" pull --ff-only; then
+            echo "$(_cmb_error "Failed to update $MAIN_BRANCH from $main_worktree. Aborting branch cleanup.")"
+            return 1
+        fi
+    else
+        if ! git checkout "$MAIN_BRANCH" || ! git pull --ff-only; then
+            echo "$(_cmb_error "Failed to update $MAIN_BRANCH. Aborting branch cleanup.")"
+            return 1
+        fi
+    fi
+
     # Find all local branches with a "gone" remote
-    local -a branches_with_deleted_remote=($(git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | command rg '\[gone\]' | awk '{print $1}'))
+    local -a branches_with_deleted_remote
+    branches_with_deleted_remote=(${(f)"$(git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | awk '/\[gone\]/ {print $1}')"})
 
     # Loop through all local branches
     for branch in "${branches_with_deleted_remote[@]}"; do
@@ -78,37 +124,111 @@ function clean_local_branches() {
             continue
         fi
 
-        echo "Branch $(colorize $RED "$normalized_branch") was tracking a remote that's now gone (likely merged)."
-        # Prompt user for deletion
-        read "choice?Do you want to delete the branch $(colorize $CYAN "$normalized_branch") and any linked worktrees? (y/n): "
-        case "$choice" in
-            y|Y)
-                local worktree_list="${BRANCH_WORKTREES[$normalized_branch]:-}"
-                local removal_failed=false
-                if [[ -n "$worktree_list" ]]; then
-                    echo "Removing worktrees linked to $(colorize $CYAN "$normalized_branch")"
-                    local wt
-                    for wt in ${(f)worktree_list}; do
-                        echo "  removing worktree: $wt"
-                        if ! git worktree remove "$wt"; then
-                            echo "Failed to remove worktree '$wt'. Skipping branch deletion."
-                            removal_failed=true
-                            break
-                        fi
-                    done
-                fi
-                if [[ "$removal_failed" == true ]]; then
+        echo "Branch $(_cmb_colorize $RED "$normalized_branch") was tracking a remote that's now gone (likely merged)."
+
+        local -a stacked_branches=()
+        local child_branch upstream_branch
+        while IFS=$'\t' read -r child_branch upstream_branch; do
+            if [[ -z "$child_branch" || "$child_branch" == "$normalized_branch" || "$child_branch" == "$MAIN_BRANCH" ]]; then
+                continue
+            fi
+
+            if [[ "$upstream_branch" == "$normalized_branch" ]]; then
+                stacked_branches+=("$child_branch")
+            fi
+        done < <(git for-each-ref --format=$'%(refname:short)\t%(upstream:short)' refs/heads)
+
+        if (( ${#stacked_branches[@]} > 0 )); then
+            echo "  $(_cmb_warning "Heads up:") local branch(es) appear stacked on it: ${(j:, :)stacked_branches}"
+        fi
+
+        local branch_choice
+        read "branch_choice?Do you want to delete the branch $(_cmb_colorize $CYAN "$normalized_branch")? (y/n): "
+        if _cmb_answer_is_no "$branch_choice"; then
+            echo "Skipped deletion of branch $(_cmb_colorize $CYAN "$normalized_branch")."
+            echo
+            continue
+        fi
+
+        if ! _cmb_answer_is_yes "$branch_choice"; then
+            echo "$(_cmb_error "Invalid input. Skipping deletion of branch '$normalized_branch'.")"
+            echo
+            continue
+        fi
+
+        local worktree_list="${BRANCH_WORKTREES[$normalized_branch]:-}"
+        local -a linked_worktrees=()
+        if [[ -n "$worktree_list" ]]; then
+            linked_worktrees=("${(@f)worktree_list}")
+        fi
+
+        if (( ${#linked_worktrees[@]} > 0 )); then
+            echo "Linked worktree(s) for $(_cmb_colorize $CYAN "$normalized_branch"):"
+            local wt
+            for wt in "${linked_worktrees[@]}"; do
+                echo "  $wt"
+            done
+
+            local -a dirty_worktrees=()
+            local status_output=""
+            for wt in "${linked_worktrees[@]}"; do
+                if ! status_output="$(git -C "$wt" status --porcelain 2>/dev/null)"; then
+                    echo "$(_cmb_error "Unable to inspect worktree '$wt'.") Leaving branch $(_cmb_colorize $CYAN "$normalized_branch") in place."
+                    dirty_worktrees+=("$wt")
                     continue
                 fi
-                git branch -D "$normalized_branch" && echo "Deleted $(colorize $GREEN "$normalized_branch")"
-                ;;
-            n|N)
-                echo "Skipped deletion of branch $(colorize $CYAN "$normalized_branch")."
-                ;;
-            *)
-                echo "Invalid input. Skipping deletion of branch '$normalized_branch'."
-                ;;
-        esac
+
+                if [[ -n "$status_output" ]]; then
+                    dirty_worktrees+=("$wt")
+                fi
+            done
+
+            if (( ${#dirty_worktrees[@]} > 0 )); then
+                echo "$(_cmb_warning "Worktree deletion skipped because these path(s) have local changes or could not be inspected:")"
+                for wt in "${dirty_worktrees[@]}"; do
+                    echo "  $wt"
+                done
+                echo "Leaving branch $(_cmb_colorize $CYAN "$normalized_branch") in place because it is still checked out in a linked worktree."
+                echo
+                continue
+            fi
+
+            local worktree_choice
+            read "worktree_choice?Do you want to delete the linked worktree(s) for $(_cmb_colorize $CYAN "$normalized_branch")? (y/n): "
+            if _cmb_answer_is_no "$worktree_choice"; then
+                echo "Leaving branch $(_cmb_colorize $CYAN "$normalized_branch") in place because it is still checked out in a linked worktree."
+                echo
+                continue
+            fi
+
+            if ! _cmb_answer_is_yes "$worktree_choice"; then
+                echo "$(_cmb_error "Invalid input. Leaving branch '$normalized_branch' and linked worktree(s) in place.")"
+                echo
+                continue
+            fi
+
+            local removal_failed=false
+            echo "Removing worktree(s) linked to $(_cmb_colorize $CYAN "$normalized_branch")"
+            for wt in "${linked_worktrees[@]}"; do
+                echo "  removing worktree: $wt"
+                if ! git worktree remove "$wt"; then
+                    echo "$(_cmb_error "Failed to remove worktree '$wt'. Skipping branch deletion.")"
+                    removal_failed=true
+                    break
+                fi
+            done
+
+            if [[ "$removal_failed" == true ]]; then
+                echo
+                continue
+            fi
+        fi
+
+        if git branch -D "$normalized_branch"; then
+            echo "Deleted $(_cmb_colorize $GREEN "$normalized_branch")"
+        else
+            echo "$(_cmb_error "Failed to delete branch '$normalized_branch'.")"
+        fi
         echo
     done
 }
