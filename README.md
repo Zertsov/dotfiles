@@ -26,3 +26,16 @@ Support for a shell is enabled by adding the corresponding configuration file
 to the repository (for example `.bashrc`) and re-running `./run.sh` while
 that shell is your default. The script will refuse to proceed if the file it
 intends to source doesn't exist, which prevents partially configured environments.
+
+## herdr
+
+If `herdr` is installed, `./run.sh` also:
+
+- Symlinks `herdr/config.toml` to `~/.config/herdr/config.toml` (an existing
+  regular file is backed up first).
+- Installs `fzf` with Homebrew when it is missing.
+- Links every plugin under `herdr/plugins/` with `herdr plugin link`.
+
+Plugins:
+
+- `find` (`prefix+f`): fuzzy-find tabs across every workspace and jump to one.

@@ -43,6 +43,45 @@ main() {
 	append_snippet "$config_file" "$repo_dir" "$source_file" "$shell_name"
 
 	printf "Linked %s to %s\n" "$config_file" "$source_file"
+
+	setup_herdr "$repo_dir"
+}
+
+# Symlinks the herdr config and links every plugin under herdr/plugins.
+# Skipped when herdr is not installed.
+setup_herdr() {
+	local repo_dir="$1"
+	local config_dir="$HOME/.config/herdr"
+	local config_file="$config_dir/config.toml"
+	local plugin_dir plugin_id
+
+	if ! command -v herdr >/dev/null; then
+		echo "herdr not found; skipping herdr setup."
+		return
+	fi
+
+	if ! command -v fzf >/dev/null && command -v brew >/dev/null; then
+		brew install fzf
+	fi
+
+	mkdir -p "$config_dir"
+	if [[ -e "$config_file" && ! -L "$config_file" ]]; then
+		mv "$config_file" "$config_file.bak.$(date +%Y%m%d%H%M%S)"
+		echo "Backed up existing herdr config."
+	fi
+	ln -sfn "$repo_dir/herdr/config.toml" "$config_file"
+	printf "Linked %s to %s\n" "$config_file" "$repo_dir/herdr/config.toml"
+
+	for plugin_dir in "$repo_dir"/herdr/plugins/*/; do
+		plugin_dir="${plugin_dir%/}"
+		plugin_id="$(awk -F'"' '/^id = /{print $2; exit}' "$plugin_dir/herdr-plugin.toml")"
+		# Relink so the registration points at this clone.
+		herdr plugin unlink "$plugin_id" >/dev/null 2>&1 || true
+		herdr plugin link "$plugin_dir" >/dev/null
+		printf "Linked herdr plugin %s\n" "$plugin_id"
+	done
+
+	herdr server reload-config >/dev/null 2>&1 || true
 }
 
 ensure_config_file() {
