@@ -1,0 +1,12 @@
+onboarding = false
+
+[theme]
+name = "tokyo-night"
+auto_switch = false
+
+# Fuzzy-find tabs across every workspace (plugin: herdr/plugins/find).
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "zertsov.find.open"
+description = "find tab or space"

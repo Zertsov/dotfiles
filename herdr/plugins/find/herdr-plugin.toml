@@ -1,0 +1,19 @@
+id = "zertsov.find"
+name = "Find"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Fuzzy-find tabs across every workspace and jump to one"
+platforms = ["macos", "linux"]
+
+[[actions]]
+id = "open"
+title = "Find tab or space"
+command = ["sh", "open.sh"]
+
+[[panes]]
+id = "picker"
+title = "Find"
+placement = "popup"
+width = "60%"
+height = "50%"
+command = ["bash", "picker.sh"]
