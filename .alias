@@ -66,11 +66,11 @@ alias c="tr -d '\n' | pbcopy"
 alias dsclean="find . -type f -name '*.DS_Store' -ls -delete"
 
 # Show or hide all files in Finder
-alias show="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
-alias hide="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
+alias show="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
+alias hide="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
 
 # URL encode string
-alias urlencode='python3 -c "import sys, urllib as ul; print ul.quote_plus(sys.argv[1]);"'
+alias urlencode='python3 -c "import sys, urllib.parse as ul; print(ul.quote_plus(sys.argv[1]))"'
 
 # alias all HTTP methods for easy usage on the cli
 for method in GET HEAD POST PUT DELETE TRACE OPTIONS; do

@@ -66,4 +66,37 @@ export PATH="$PNPM_HOME:$PATH"
 #######
 # FNM #
 #######
-eval "$(fnm env --use-on-cd)"
+command -v fnm >/dev/null && eval "$(fnm env --use-on-cd)"
+
+########
+# PATH #
+########
+export PATH="$HOME/.local/bin:$PATH"
+
+# Go
+export GOPATH="$HOME/go"
+export PATH="$PATH:$GOPATH/bin"
+
+# Bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+[ -s "$BUN_INSTALL/_bun" ] && source "$BUN_INSTALL/_bun"
+
+# Google Cloud SDK (Homebrew cask or the standalone ~/google-cloud-sdk install)
+for gcloud_sdk in "${HOMEBREW_PREFIX:-/opt/homebrew}/share/google-cloud-sdk" "$HOME/google-cloud-sdk"; do
+	if [ -f "$gcloud_sdk/path.zsh.inc" ]; then
+		source "$gcloud_sdk/path.zsh.inc"
+		[ -f "$gcloud_sdk/completion.zsh.inc" ] && source "$gcloud_sdk/completion.zsh.inc"
+		break
+	fi
+done
+unset gcloud_sdk
+
+# Trust the mkcert local CA from Node
+command -v mkcert >/dev/null && export NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"
+
+#########
+# Local #
+#########
+# Machine-specific aliases, functions, PATH entries and secrets. Not tracked.
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"

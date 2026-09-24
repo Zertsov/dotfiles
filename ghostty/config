@@ -1,0 +1,5 @@
+# Ghostty config. Symlinked into place by run.sh.
+# Options: `ghostty +show-config --default --docs` or https://ghostty.org/docs/config
+
+# Send ESC+CR on shift+enter so TUIs (e.g. Claude Code) can insert a newline.
+keybind = shift+enter=text:\x1b\r
