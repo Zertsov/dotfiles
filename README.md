@@ -33,6 +33,7 @@ Run every step with `./run.sh`, or only some with `./run.sh <step> [<step>...]`.
 | `ghostty` | Symlinks `ghostty/config` into Ghostty's config location. |
 | `nvim`    | Clones [kickstart.nvim](https://github.com/Zertsov/kickstart.nvim) to `~/.config/nvim`. |
 | `herdr`   | Symlinks `herdr/config.toml` to `~/.config/herdr/config.toml` and links every plugin in `herdr/plugins/`. |
+| `herdr-app` | Makes `~/.config/herdr-app` a checkout of [herdr-mods](https://github.com/Zertsov/herdr-mods) (Herdr.app mods, layout and keys). Later runs pull. |
 
 ## herdr
 
@@ -52,6 +53,13 @@ immediately.
 
 To add a plugin, create `herdr/plugins/<name>/herdr-plugin.toml` and re-run
 `./run.sh herdr`. See the [herdr plugin docs](https://herdr.dev/docs/plugins/).
+
+## Herdr.app
+
+The `herdr-app` step sets up the Herdr desktop app from
+[Zertsov/herdr-mods](https://github.com/Zertsov/herdr-mods). That repo's working tree is
+the app's home (`~/.config/herdr-app`), so the app runs its files directly and reloads them
+on save. Edit and commit there (`cd ~/.config/herdr-app`); `./run.sh herdr-app` pulls.
 
 ## Local overrides
 

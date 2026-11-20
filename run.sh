@@ -4,13 +4,14 @@
 #   ./run.sh              run every step
 #   ./run.sh herdr nvim   run only the named steps
 #
-# Steps: brew shell git ghostty nvim herdr
+# Steps: brew shell git ghostty nvim herdr herdr-app
 set -euo pipefail
 
 MARKER_START="# >>> dotfiles initialization (managed - do not edit) >>>"
 MARKER_END="# <<< dotfiles initialization (managed - do not edit) <<<"
 NVIM_REPO="https://github.com/Zertsov/kickstart.nvim.git"
-ALL_STEPS=(brew shell git ghostty nvim herdr)
+HERDR_MODS_REPO="${HERDR_MODS_REPO:-https://github.com/Zertsov/herdr-mods.git}"
+ALL_STEPS=(brew shell git ghostty nvim herdr herdr-app)
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -22,9 +23,9 @@ main() {
 
 	for step in "${steps[@]}"; do
 		case "$step" in
-		brew | shell | git | ghostty | nvim | herdr)
+		brew | shell | git | ghostty | nvim | herdr | herdr-app)
 			printf '\n==> %s\n' "$step"
-			"setup_$step"
+			"setup_${step//-/_}"
 			;;
 		*)
 			printf "Unknown step '%s'. Steps: %s\n" "$step" "${ALL_STEPS[*]}" >&2
@@ -169,6 +170,21 @@ setup_herdr() {
 	done
 
 	herdr server reload-config >/dev/null 2>&1 || true
+}
+
+# Makes Herdr.app's home a checkout of herdr-mods, so the app runs that repo's
+# files directly (see install.sh there). Later runs pull.
+setup_herdr_app() {
+	local app_home="${HERDR_APP_HOME:-$HOME/.config/herdr-app}" tmp
+
+	if [[ -x "$app_home/install.sh" && -d "$app_home/.git" ]]; then
+		"$app_home/install.sh"
+		return
+	fi
+	tmp="$(mktemp -d)"
+	git clone -q --depth 1 "$HERDR_MODS_REPO" "$tmp/herdr-mods"
+	"$tmp/herdr-mods/install.sh"
+	rm -rf "${tmp:?}"
 }
 
 main "$@"
